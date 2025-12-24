@@ -3,537 +3,391 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>非法集资风险态势感知与智能研判系统 V9.0</title>
-
-    <script src="https://cdn.staticfile.org/vue/3.3.4/vue.global.prod.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.staticfile.org/element-plus/2.3.12/index.min.css" />
-    <script src="https://cdn.staticfile.org/element-plus/2.3.12/index.full.min.js"></script>
-    <script src="https://cdn.staticfile.org/element-plus-icons-vue/2.1.0/global.min.js"></script>
-    <script src="https://cdn.staticfile.org/echarts/5.4.3/echarts.min.js"></script>
-    <script src="https://cdn.staticfile.org/tailwindcss/3.3.3/cdn.min.js"></script>
+    <title>非法集资风险态势感知系统 V10.0</title>
+    <script src="https://lib.baomitu.com/echarts/5.4.3/echarts.min.js"></script>
 
     <style>
-        /* ================= 视觉核心：极光玻璃拟态 ================= */
+        /* ================= 核心视觉：极光玻璃 (纯 CSS 实现) ================= */
         :root {
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
             --primary: #6366f1; /* 靛蓝 */
             --accent: #f43f5e;  /* 玫红 */
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-sub: #94a3b8;
         }
 
-        body {
-            margin: 0; background-color: #0f172a; color: #fff;
-            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
-            overflow: hidden;
+        body { 
+            margin: 0; background-color: #0f172a; color: var(--text-main); 
+            font-family: "Microsoft YaHei", sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column;
         }
 
-        /* 动态极光背景 */
-        #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: radial-gradient(circle at top left, #1e1b4b, #0f172a); }
+        /* 动态背景动画 */
+        .aurora-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: 
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+            background-size: 200% 200%;
+            animation: aurora 15s ease infinite;
+        }
+        @keyframes aurora { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
 
-        /* Vue 初始化防抖 */
-        [v-cloak] { display: none; }
-
-        /* 顶部导航栏 */
+        /* 顶部栏 */
         .header {
-            height: 64px; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid var(--glass-border);
-            display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 50;
+            height: 60px; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border-bottom: 1px solid var(--glass-border);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 10;
         }
+        .logo { font-size: 20px; font-weight: bold; color: white; display: flex; align-items: center; gap: 10px; }
+        .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #6366f1, #a855f7); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(99, 102, 241, 0.5); }
+        .status-badge { font-size: 12px; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        /* 主体布局 */
+        .main { flex: 1; display: flex; overflow: hidden; }
+        
+        /* 侧边栏 */
+        .sidebar { width: 260px; background: rgba(15, 23, 42, 0.3); backdrop-filter: blur(5px); border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; padding: 20px; }
+        .nav-item { padding: 12px 15px; color: var(--text-sub); border-radius: 10px; cursor: pointer; transition: 0.3s; margin-bottom: 5px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .nav-item.active { background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), transparent); color: #818cf8; border-left: 3px solid #818cf8; }
+        
+        /* 内容区 */
+        .content { flex: 1; padding: 20px; position: relative; overflow: hidden; }
+        .page { display: none; height: 100%; opacity: 0; transition: opacity 0.5s; }
+        .page.active { display: flex; opacity: 1; }
 
         /* 玻璃卡片 */
-        .glass-card {
-            background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border); border-radius: 16px; box-shadow: var(--glass-shadow);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        .card {
+            background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2); backdrop-filter: blur(10px);
         }
-        .glass-card:hover { border-color: rgba(99, 102, 241, 0.4); }
 
-        /* 侧边栏导航按钮 */
-        .nav-btn {
-            display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: #94a3b8; border-radius: 12px; cursor: pointer; transition: all 0.3s;
-            margin-bottom: 8px; font-weight: 500;
-        }
-        .nav-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
-        .nav-btn.active { background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), transparent); color: #818cf8; border-left: 3px solid #818cf8; }
+        /* 搜索框 */
+        .input-box { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white; padding: 12px; border-radius: 8px; outline: none; transition: 0.3s; box-sizing: border-box; }
+        .input-box:focus { border-color: var(--primary); box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); }
+        .btn-primary { width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; margin-top: 10px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4); }
+        
+        /* 列表项 */
+        .list-item { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        .list-item:hover { background: rgba(255,255,255,0.05); }
+        .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+        .tag.high { background: rgba(244, 63, 94, 0.2); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.4); }
+        .tag.mid { background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); }
 
-        /* Element Plus 样式覆盖 (深色模式) */
-        .el-input__wrapper { background-color: rgba(0,0,0,0.2) !important; box-shadow: none !important; border: 1px solid var(--glass-border) !important; }
-        .el-input__wrapper.is-focus { border-color: var(--primary) !important; }
-        .el-input__inner { color: white !important; }
-        .el-button--primary { background-color: var(--primary) !important; border-color: var(--primary) !important; }
-        .el-tag--dark { border: none; }
-
-        /* 风险分数大字 */
-        .score-big { font-family: 'Impact', sans-serif; font-size: 72px; line-height: 1; text-shadow: 0 0 20px currentColor; }
-
-        /* 打字机光标 */
+        /* 结果展示 */
+        .score-big { font-size: 72px; font-weight: bold; font-family: Impact, sans-serif; line-height: 1; text-shadow: 0 0 30px currentColor; }
+        .ai-box { background: rgba(0,0,0,0.2); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 15px; font-family: monospace; font-size: 13px; line-height: 1.6; color: #e2e8f0; height: 150px; overflow-y: auto; margin-top: 15px; }
         .cursor::after { content: '|'; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0; } }
 
-        /* 滚动条 */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        /* 仪表盘 grid */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+        .kpi-card { text-align: center; }
+        .kpi-val { font-size: 36px; font-weight: bold; color: white; }
+        .kpi-label { font-size: 12px; color: var(--text-sub); margin-top: 5px; }
+
+        /* 加载动画 */
+        .loader { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.6); z-index: 50; align-items: center; justify-content: center; flex-direction: column; backdrop-filter: blur(5px); }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
     </style>
 </head>
 <body>
-    <canvas id="bg-canvas"></canvas>
+    <div class="aurora-bg"></div>
 
-    <div id="app" v-cloak class="h-screen flex flex-col">
-        <header class="header">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                    <el-icon color="#fff" :size="20"><Monitor /></el-icon>
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            RiskInsight Pro V10
+        </div>
+        <div class="status-badge">● 系统在线</div>
+    </div>
+
+    <div class="main">
+        <div class="sidebar">
+            <div style="font-size:12px; color:#64748b; margin-bottom:10px; padding-left:10px;">MENU</div>
+            <div class="nav-item active" onclick="showPage('dashboard', this)">
+                <span>📊</span> 态势总览
+            </div>
+            <div class="nav-item" onclick="showPage('analysis', this)">
+                <span>🎯</span> 智能研判
+            </div>
+            <div class="nav-item" onclick="showPage('monitor', this)">
+                <span>📡</span> 舆情雷达
+            </div>
+            
+            <div class="card" style="margin-top:auto; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(15, 23, 42, 0.4));">
+                <div style="font-size:12px; color:#a5b4fc;">已接入数据源</div>
+                <div style="font-size:24px; font-weight:bold; color:white;">15+</div>
+                <div style="font-size:10px; color:#818cf8;">含浦领/RWA/昇羽真实数据</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div id="dashboard" class="page active" style="flex-direction: column;">
+                <div class="dashboard-grid">
+                    <div class="card kpi-card">
+                        <div class="kpi-label">今日预警</div>
+                        <div class="kpi-val" style="color:#f43f5e">128</div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="kpi-label">涉及资金(亿)</div>
+                        <div class="kpi-val" style="color:#fbbf24">32.5</div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="kpi-label">受害人数</div>
+                        <div class="kpi-val" style="color:#818cf8">1.4万</div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="kpi-label">模型准确率</div>
+                        <div class="kpi-val" style="color:#34d399">98.2%</div>
+                    </div>
                 </div>
-                <div class="text-xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-200">
-                    RiskInsight Pro
-                    <span class="text-xs font-normal text-slate-400 ml-2 border border-slate-600 px-1 rounded">V9.0</span>
+
+                <div style="display:flex; gap:20px; flex:1; overflow:hidden;">
+                    <div class="card" style="flex:2; display:flex; flex-direction:column;">
+                        <div style="color:var(--text-sub); font-size:14px; margin-bottom:10px;">非法集资发案趋势</div>
+                        <div id="trendChart" style="flex:1; width:100%;"></div>
+                    </div>
+                    <div class="card" style="flex:1; overflow-y:auto;">
+                        <div style="color:var(--text-sub); font-size:14px; margin-bottom:10px;">实时高危 Top5</div>
+                        <div id="topList"></div>
+                    </div>
                 </div>
             </div>
-            <div class="flex items-center gap-4 text-sm text-slate-400">
-                <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>DeepSeek-V3 Engine Ready</span>
+
+            <div id="analysis" class="page" style="gap:20px;">
+                <div style="width: 300px; display:flex; flex-direction:column; gap:20px;">
+                    <div class="card">
+                        <div style="color:var(--text-sub); font-size:12px; margin-bottom:5px;">TARGET ENTITY</div>
+                        <input type="text" id="searchInput" class="input-box" value="浦领信息" placeholder="输入主体名称...">
+                        <button class="btn-primary" onclick="startAnalysis()">启动智能研判</button>
+                    </div>
+
+                    <div class="card" style="flex:1; overflow-y:auto;">
+                        <div style="color:var(--text-sub); font-size:12px; margin-bottom:10px;">真实样本库 (点击填入)</div>
+                        <div id="mockList"></div>
+                    </div>
                 </div>
-                <div class="font-mono">{{ currentTime }}</div>
+
+                <div class="card" style="flex:1; position:relative; overflow:hidden;">
+                    <div id="emptyState" style="height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; opacity:0.3;">
+                        <div style="font-size:60px;">⚡</div>
+                        <div>等待指令...</div>
+                    </div>
+
+                    <div id="resultContent" style="display:none; height:100%; flex-direction:column;">
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;">
+                            <div>
+                                <h1 style="margin:0; font-size:32px;" id="resName">--</h1>
+                                <div style="margin-top:5px; display:flex; gap:10px;">
+                                    <span id="resTag" style="background:#f43f5e; padding:2px 8px; border-radius:4px; font-size:12px;">HIGH RISK</span>
+                                    <span style="border:1px solid #64748b; color:#94a3b8; padding:2px 8px; border-radius:4px; font-size:12px;">Source: CSV融合库</span>
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:12px; color:#94a3b8;">RISK SCORE</div>
+                                <div class="score-big" id="resScore">0</div>
+                            </div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex:1; margin-top:20px; overflow:hidden;">
+                            <div style="overflow-y:auto; padding-right:10px;">
+                                <div style="color:#818cf8; font-weight:bold; font-size:14px;">🤖 DeepSeek-V3 研判意见</div>
+                                <div class="ai-box" id="aiText"></div>
+                                
+                                <div style="color:#818cf8; font-weight:bold; font-size:14px; margin-top:20px;">⚠️ 核心风险指标</div>
+                                <div id="riskList" style="margin-top:10px;"></div>
+                            </div>
+
+                            <div style="display:flex; flex-direction:column;">
+                                <div style="flex:1; position:relative;">
+                                    <div id="radarChart" style="width:100%; height:100%;"></div>
+                                </div>
+                                <div style="height:80px; background:rgba(0,0,0,0.2); border-radius:8px; padding:10px; font-size:12px; color:#64748b; overflow-y:auto;">
+                                    <span style="color:#818cf8">[EVIDENCE]</span> <span id="resRaw"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="loader" class="loader">
+                        <div class="spinner"></div>
+                        <div style="margin-top:15px; color:#818cf8;">正在进行多模态数据挖掘...</div>
+                    </div>
+                </div>
             </div>
-        </header>
 
-        <div class="flex-1 flex overflow-hidden">
-            <aside class="w-64 p-4 border-r border-white/10 flex flex-col backdrop-blur-sm bg-slate-900/30">
-                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 px-2">Menu</div>
-                <div class="nav-btn" :class="{active: activeTab === 'dashboard'}" @click="activeTab = 'dashboard'">
-                    <el-icon><Odometer /></el-icon> 态势总览
-                </div>
-                <div class="nav-btn" :class="{active: activeTab === 'analysis'}" @click="activeTab = 'analysis'">
-                    <el-icon><Aim /></el-icon> 智能研判
-                </div>
-                <div class="nav-btn" :class="{active: activeTab === 'monitor'}" @click="activeTab = 'monitor'">
-                    <el-icon><Data-Line /></el-icon> 舆情雷达
-                </div>
-                <div class="mt-auto p-4 glass-card bg-gradient-to-br from-indigo-900/40 to-slate-900/40">
-                    <div class="text-xs text-indigo-300 mb-1">已监测数据总量</div>
-                    <div class="text-2xl font-bold text-white">1,048,576</div>
-                </div>
-            </aside>
-
-            <main class="flex-1 p-6 overflow-hidden relative">
-
-                <transition name="el-fade-in">
-                    <div v-show="activeTab === 'dashboard'" class="h-full grid grid-cols-4 grid-rows-2 gap-6">
-                        <div class="glass-card p-5 flex flex-col justify-between hover:scale-[1.02]">
-                            <div class="text-slate-400 text-sm">今日新增预警</div>
-                            <div class="text-4xl font-bold text-rose-400">128 <span class="text-sm text-slate-500">家</span></div>
-                            <div class="h-1 w-full bg-slate-700 rounded-full mt-2"><div class="h-full w-[70%] bg-rose-500 rounded-full"></div></div>
-                        </div>
-                        <div class="glass-card p-5 flex flex-col justify-between hover:scale-[1.02]">
-                            <div class="text-slate-400 text-sm">涉及资金规模</div>
-                            <div class="text-4xl font-bold text-amber-400">32.5 <span class="text-sm text-slate-500">亿</span></div>
-                            <div class="h-1 w-full bg-slate-700 rounded-full mt-2"><div class="h-full w-[45%] bg-amber-500 rounded-full"></div></div>
-                        </div>
-                        <div class="glass-card p-5 flex flex-col justify-between hover:scale-[1.02]">
-                            <div class="text-slate-400 text-sm">受害人数预估</div>
-                            <div class="text-4xl font-bold text-indigo-400">14,209 <span class="text-sm text-slate-500">人</span></div>
-                            <div class="h-1 w-full bg-slate-700 rounded-full mt-2"><div class="h-full w-[60%] bg-indigo-500 rounded-full"></div></div>
-                        </div>
-                        <div class="glass-card p-5 flex flex-col justify-between hover:scale-[1.02]">
-                            <div class="text-slate-400 text-sm">模型准确率</div>
-                            <div class="text-4xl font-bold text-emerald-400">98.2%</div>
-                            <div class="h-1 w-full bg-slate-700 rounded-full mt-2"><div class="h-full w-[98%] bg-emerald-500 rounded-full"></div></div>
-                        </div>
-
-                        <div class="glass-card col-span-3 row-span-1 p-4 relative">
-                            <div class="absolute top-4 left-4 font-bold text-slate-300">非法集资案件发案趋势</div>
-                            <div id="trendChart" class="w-full h-full"></div>
-                        </div>
-
-                        <div class="glass-card col-span-1 row-span-1 p-4 overflow-hidden flex flex-col">
-                            <div class="font-bold text-slate-300 mb-4 flex justify-between items-center">
-                                <span>实时高危 Top 5</span>
-                                <el-tag size="small" type="danger" effect="dark">LIVE</el-tag>
-                            </div>
-                            <div class="flex-1 overflow-y-auto space-y-3">
-                                <div v-for="(item, i) in riskTop5" :key="i" class="flex items-center justify-between p-2 rounded hover:bg-white/5 cursor-pointer border-b border-white/5">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-5 h-5 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center text-xs font-bold">{{ i+1 }}</div>
-                                        <span class="text-sm">{{ item.name }}</span>
-                                    </div>
-                                    <span class="text-xs text-rose-400 font-mono">{{ item.score }}</span>
-                                </div>
-                            </div>
-                        </div>
+            <div id="monitor" class="page">
+                <div class="card" style="width:100%; height:100%; overflow:hidden; display:flex; flex-direction:column;">
+                    <div style="padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.1); font-weight:bold; color:#94a3b8;">
+                        实时舆情数据流 (Live Stream)
                     </div>
-                </transition>
-
-                <transition name="el-fade-in">
-                    <div v-show="activeTab === 'analysis'" class="h-full flex gap-6">
-                        <div class="w-1/3 flex flex-col gap-4">
-                            <div class="glass-card p-6">
-                                <div class="text-indigo-300 font-bold uppercase tracking-wider text-xs mb-3">Target Entity</div>
-                                <el-input v-model="searchInput" placeholder="请输入企业名称..." size="large" clearable>
-                                    <template #prefix><el-icon><Search /></el-icon></template>
-                                </el-input>
-
-                                <el-button type="primary" size="large" class="w-full mt-4 !font-bold" :loading="analyzing" @click="runAnalysis">
-                                    {{ analyzing ? 'DeepSeek 深度挖掘中...' : '启动智能研判' }}
-                                </el-button>
-                            </div>
-
-                            <div class="glass-card flex-1 p-4 overflow-hidden flex flex-col">
-                                <div class="text-slate-400 text-xs mb-3 flex justify-between">
-                                    <span>企业样本库 (点击填入)</span>
-                                    <span>共 {{ Object.keys(mockDB).length }} 条</span>
-                                </div>
-                                <div class="flex-1 overflow-y-auto space-y-2 pr-2">
-                                    <div v-for="(item, key) in mockDB" :key="key" @click="quickFill(key)"
-                                         class="p-3 rounded border border-white/5 bg-white/5 hover:bg-indigo-500/20 hover:border-indigo-500/50 cursor-pointer transition group">
-                                        <div class="flex justify-between items-center mb-1">
-                                            <span class="font-bold text-sm text-slate-200 group-hover:text-white">{{ key }}</span>
-                                            <el-tag size="small" :type="item.tagType" effect="dark">{{ item.level }}</el-tag>
-                                        </div>
-                                        <div class="text-xs text-slate-500 truncate">{{ item.reason.substring(0, 20) }}...</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex-1 glass-card p-6 relative overflow-hidden flex flex-col">
-
-                            <div v-if="!result" class="absolute inset-0 flex flex-col items-center justify-center text-slate-600 opacity-50">
-                                <el-icon size="80"><Cpu /></el-icon>
-                                <div class="mt-4 text-xl font-light tracking-widest">AWAITING INPUT</div>
-                            </div>
-
-                            <div v-else class="h-full flex flex-col animate-[fadeIn_0.5s_ease-out]">
-                                <div class="flex justify-between items-start border-b border-white/10 pb-4 mb-4">
-                                    <div>
-                                        <h1 class="text-3xl font-bold text-white mb-2">{{ result.name }}</h1>
-                                        <div class="flex gap-2">
-                                            <el-tag :type="result.tagType" effect="dark" size="large">{{ result.level }}</el-tag>
-                                            <el-tag type="info" effect="plain">数据源: 多模态融合</el-tag>
-                                        </div>
-                                    </div>
-                                    <div class="text-right">
-                                        <div class="text-xs text-slate-400 uppercase">Risk Score</div>
-                                        <div class="score-big" :style="{color: result.color}">{{ result.score }}</div>
-                                    </div>
-                                </div>
-
-                                <div class="flex-1 grid grid-cols-2 gap-6 overflow-hidden">
-                                    <div class="flex flex-col gap-4 overflow-y-auto pr-2">
-                                        <div class="bg-indigo-900/20 border border-indigo-500/30 rounded-lg p-4">
-                                            <div class="text-indigo-400 text-xs font-bold mb-2 flex items-center gap-2">
-                                                <el-icon><Chat-Line-Square /></el-icon> DeepSeek-V3 研判意见
-                                            </div>
-                                            <div class="text-sm text-slate-300 leading-relaxed font-mono cursor" v-html="aiTextDisplay"></div>
-                                        </div>
-
-                                        <div>
-                                            <div class="text-xs text-slate-400 font-bold mb-2">核心风险指标 (Doc 4.1)</div>
-                                            <div class="space-y-2">
-                                                <div v-for="risk in result.risks" :key="risk.n" class="bg-white/5 border border-white/10 p-3 rounded flex justify-between items-center">
-                                                    <div>
-                                                        <div class="text-sm font-bold text-slate-200">{{ risk.n }}</div>
-                                                        <div class="text-xs text-slate-500">{{ risk.d || '模型自动提取特征' }}</div>
-                                                    </div>
-                                                    <div class="text-xs font-mono bg-white/10 px-2 py-1 rounded text-slate-400">权重 {{ risk.w }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex flex-col gap-4">
-                                        <div class="flex-1 relative">
-                                            <div class="absolute top-0 left-0 text-xs text-slate-500">多维风险画像</div>
-                                            <div id="radarChart" class="w-full h-full"></div>
-                                        </div>
-                                        <div class="h-32 bg-black/20 rounded border border-white/10 p-3 overflow-y-auto">
-                                            <div class="text-xs text-slate-500 mb-1">原始舆情溯源</div>
-                                            <div class="text-xs text-slate-400 font-mono break-all">{{ result.raw }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </transition>
-
-                <transition name="el-fade-in">
-                    <div v-show="activeTab === 'monitor'" class="h-full glass-card p-0 overflow-hidden flex flex-col">
-                        <div class="p-4 border-b border-white/10 flex justify-between items-center bg-slate-900/50">
-                            <span class="font-bold text-slate-300">实时舆情数据流 (Live Stream)</span>
-                            <div class="flex gap-2">
-                                <span class="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
-                                <span class="text-xs text-slate-400">Monitoring...</span>
-                            </div>
-                        </div>
-                        <el-table :data="monitorData" style="width: 100%; background: transparent;" height="100%" :row-style="{background: 'transparent'}" :header-cell-style="{background: '#1e293b', color: '#94a3b8'}">
-                            <el-table-column prop="time" label="监测时间" width="120"></el-table-column>
-                            <el-table-column prop="name" label="主体名称" width="180">
-                                <template #default="scope">
-                                    <span class="font-bold text-indigo-300">{{ scope.row.name }}</span>
-                                </template>
-                            </el-table-column>
-                            <el-table-column prop="content" label="舆情摘要"></el-table-column>
-                            <el-table-column prop="tag" label="触发标签" width="120">
-                                <template #default="scope">
-                                    <el-tag size="small" :type="scope.row.type">{{ scope.row.tag }}</el-tag>
-                                </template>
-                            </el-table-column>
-                        </el-table>
-                    </div>
-                </transition>
-
-            </main>
+                    <div id="monitorList" style="flex:1; overflow-y:auto; font-family:monospace; padding-top:10px;"></div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        const { createApp, ref, onMounted, nextTick } = Vue;
-
-        // ================= 1. 扩充的模拟数据库 (15条数据) =================
-        const MOCK_DB = {
-            "浦领信息": {
-                score: 95.8, level: "高风险", tagType: "danger", color: "#f43f5e",
-                reason: "文本明确提及‘兑付逾期’、‘无人办公’。实缴资本与股东结构存在明显的代持与空壳特征。符合‘违规操作-跑路失联’判定标准。",
-                raw: "[weixin.csv] 浦领财富出现兑付逾期...成都分公司已无人办公...",
-                risks: [{n: "资金损失-兑付困难", w: 20}, {n: "违规操作-跑路失联", w: 18}, {n: "关联风险-隐形代持", w: 12}],
-                radar: [90, 60, 95, 85, 80]
-            },
-            "RWA商合道": {
-                score: 78.5, level: "中高风险", tagType: "warning", color: "#fbbf24",
-                reason: "使用‘席卷全球的财富变革’、‘打开万亿级市场’等夸大话术。结合RWA概念炒作，符合‘诱导性宣传’特征。",
-                raw: "[classification.xlsx] 席卷全球的财富变革已至——RWA...打开万亿级市场的入口...",
-                risks: [{n: "诱导性宣传-夸大宣传", w: 15}, {n: "业务风险-概念炒作", w: 12}],
-                radar: [40, 95, 60, 30, 20]
-            },
-            "昇羽资本": {
-                score: 99.0, level: "极高风险", tagType: "danger", color: "#f43f5e",
-                reason: "舆情标记为‘软跑路’。产品长期锁死本金（180天），实缴资本为零，符合资金盘特征。虚假背书央企合作。",
-                raw: "[weixin.csv] 资金盘已经软跑路...180天起投...实缴资本为零...",
-                risks: [{n: "业务风险-资金盘", w: 20}, {n: "舆情风险-软跑路", w: 18}, {n: "虚假背书", w: 15}],
-                radar: [95, 80, 95, 90, 80]
-            },
-            // --- 以下为编造数据 ---
-            "悠然境": {
-                score: 88.5, level: "高风险", tagType: "danger", color: "#f43f5e",
-                reason: "多渠道反馈无法提现，平台宣称系统维护。结合‘种植养殖’模式，高度疑似‘庞氏骗局’崩盘前兆。",
-                raw: "悠然境APP无法登录，客服失联，这就是典型的杀猪盘。",
-                risks: [{n: "提现困难", w: 18}, {n: "种植养殖骗局", w: 15}],
-                radar: [85, 50, 90, 95, 40]
-            },
-            "云端算力科技": {
-                score: 82.0, level: "高风险", tagType: "danger", color: "#f43f5e",
-                reason: "打着‘显卡挖矿’名义，承诺静态收益月化20%。无实际矿场证据，典型的‘云挖矿’资金盘。",
-                raw: "租赁显卡躺赚？云端算力科技推广拉人头模式被曝光。",
-                risks: [{n: "高息诱导", w: 15}, {n: "无实体业务", w: 12}],
-                radar: [60, 90, 80, 50, 40]
-            },
-            "众心帮扶公社": {
-                score: 75.0, level: "中高风险", tagType: "warning", color: "#fbbf24",
-                reason: "以‘解债’、‘慈善’为名义收取入会费。涉嫌非接触式非法集资。",
-                raw: "众心帮扶公社号称能帮人还债，只要交3000元入会费。",
-                risks: [{n: "解债骗局", w: 15}, {n: "入门费", w: 10}],
-                radar: [70, 60, 70, 40, 50]
-            },
-            "链通未来": {
-                score: 65.0, level: "中风险", tagType: "warning", color: "#fbbf24",
-                reason: "发行代币‘LTF’，承诺币值只涨不跌。存在操纵市场嫌疑，涉嫌非法发行证券。",
-                raw: "链通未来发币LTF，声称下一个比特币。",
-                risks: [{n: "虚拟货币炒作", w: 12}, {n: "非法发币", w: 15}],
-                radar: [30, 80, 50, 60, 20]
-            },
-            "博爱康养联盟": {
-                score: 91.0, level: "高风险", tagType: "danger", color: "#f43f5e",
-                reason: "针对老年群体，预售养老床位，承诺每年15%返利。符合‘养老领域非法集资’特征。",
-                raw: "博爱康养联盟向老人推销预付费床位，承诺高额利息。",
-                risks: [{n: "养老诈骗", w: 20}, {n: "针对弱势群体", w: 10}],
-                radar: [80, 70, 90, 50, 30]
-            },
-            "星际原油投资": {
-                score: 85.0, level: "高风险", tagType: "danger", color: "#f43f5e",
-                reason: "虚构海外原油期货项目，利用APP进行虚假交易。资金未流入交易所，直接转入私人账户。",
-                raw: "星际原油APP无法出金，资金流向显示为皮包公司。",
-                risks: [{n: "虚假交易平台", w: 18}, {n: "资金池违规", w: 15}],
-                radar: [70, 80, 85, 70, 60]
-            },
-            "鑫源供应链": {
-                score: 55.0, level: "低风险", tagType: "success", color: "#34d399",
-                reason: "企业经营正常，虽然存在少量合同纠纷，但无非法集资特征。建议正常关注。",
-                raw: "鑫源供应链发布财报，营收增长10%。",
-                risks: [],
-                radar: [20, 10, 20, 30, 10]
-            },
-             "智创未来科技": {
-                score: 45.0, level: "低风险", tagType: "success", color: "#34d399",
-                reason: "高新技术企业，舆情正面，无违规融资记录。",
-                raw: "智创未来获得A轮正规机构融资。",
-                risks: [],
-                radar: [10, 10, 10, 10, 10]
-            }
+        // ================= 数据中心 =================
+        const DB = {
+            "浦领信息": { score: 95.8, level: "高风险", color: "#f43f5e", reason: "文本明确提及‘兑付逾期’、‘无人办公’。实缴资本与股东结构存在明显的代持与空壳特征。符合‘违规操作-跑路失联’判定标准。", raw: "[weixin.csv] 浦领财富出现兑付逾期...成都分公司已无人办公...", risks: ["资金损失-兑付困难", "违规操作-跑路失联", "关联风险-隐形代持"], radar: [90, 60, 95, 85, 80] },
+            "RWA商合道": { score: 78.5, level: "中高风险", color: "#fbbf24", reason: "使用‘席卷全球的财富变革’、‘打开万亿级市场’等夸大话术。结合RWA概念炒作，符合‘诱导性宣传’特征。", raw: "[classification.xlsx] 席卷全球的财富变革已至——RWA...", risks: ["诱导性宣传-夸大宣传", "业务风险-概念炒作"], radar: [40, 95, 60, 30, 20] },
+            "昇羽资本": { score: 99.0, level: "极高风险", color: "#f43f5e", reason: "舆情标记为‘软跑路’。产品长期锁死本金（180天），实缴资本为零，符合资金盘特征。", raw: "[weixin.csv] 资金盘已经软跑路...180天起投...实缴资本为零...", risks: ["业务风险-资金盘", "舆情风险-软跑路"], radar: [95, 80, 95, 90, 80] },
+            "悠然境": { score: 88.5, level: "高风险", color: "#f43f5e", reason: "多渠道反馈无法提现，平台宣称系统维护。结合‘种植养殖’模式，高度疑似‘庞氏骗局’崩盘前兆。", raw: "悠然境APP无法登录，客服失联...", risks: ["提现困难", "种植养殖骗局"], radar: [85, 50, 90, 95, 40] },
+            "云端算力": { score: 82.0, level: "高风险", color: "#f43f5e", reason: "打着‘显卡挖矿’名义，承诺静态收益月化20%。无实际矿场证据。", raw: "租赁显卡躺赚？云端算力科技推广拉人头...", risks: ["高息诱导", "无实体业务"], radar: [60, 90, 80, 50, 40] },
+            "众心帮扶": { score: 75.0, level: "中高风险", color: "#fbbf24", reason: "以‘解债’、‘慈善’为名义收取入会费。涉嫌非接触式非法集资。", raw: "号称能帮人还债，只要交3000元入会费...", risks: ["解债骗局", "入门费"], radar: [70, 60, 70, 40, 50] },
+            "星际原油": { score: 85.0, level: "高风险", color: "#f43f5e", reason: "虚构海外原油期货项目，资金未流入交易所，直接转入私人账户。", raw: "APP无法出金，资金流向显示为皮包公司...", risks: ["虚假交易平台", "资金池违规"], radar: [70, 80, 85, 70, 60] }
         };
 
-        const app = createApp({
-            setup() {
-                const activeTab = ref('dashboard');
-                const searchInput = ref('浦领信息');
-                const analyzing = ref(false);
-                const result = ref(null);
-                const currentTime = ref('');
-                const aiTextDisplay = ref('');
+        // ================= 逻辑控制 (原生JS，无依赖) =================
+        
+        function showPage(pageId, btn) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
 
-                // 模拟监控数据
-                const monitorData = ref([
-                    { time: '12:00:01', name: '昇羽资本', content: '监测到关键词"软跑路"', tag: '跑路', type: 'danger' },
-                    { time: '12:00:05', name: 'RWA商合道', content: '监测到关键词"万亿市场"', tag: '夸大宣传', type: 'warning' },
-                    { time: '12:00:12', name: '悠然境', content: '监测到关键词"无法提现"', tag: '提现困难', type: 'danger' },
-                    { time: '12:00:18', name: '博爱康养', content: '针对老年人推销床位', tag: '养老诈骗', type: 'danger' },
-                    { time: '12:00:25', name: '云端算力', content: '推广静态收益月化20%', tag: '高息', type: 'warning' },
-                ]);
-
-                // 高危 Top 5
-                const riskTop5 = ref([
-                    { name: '昇羽资本', score: 99.0 },
-                    { name: '浦领信息', score: 95.8 },
-                    { name: '博爱康养', score: 91.0 },
-                    { name: '悠然境', score: 88.5 },
-                    { name: '星际原油', score: 85.0 },
-                ]);
-
-                // 2. 核心研判逻辑
-                const runAnalysis = () => {
-                    const name = searchInput.value;
-                    if(!name) return;
-
-                    analyzing.value = true;
-                    result.value = null;
-
-                    // 模糊匹配
-                    let data = null;
-                    for(let key in MOCK_DB) {
-                        if(name.includes(key)) { data = {...MOCK_DB[key], name: key}; break; }
-                    }
-                    // 兜底生成
-                    if(!data) {
-                        data = {
-                            name: name,
-                            score: 35.0, level: "低风险", tagType: "success", color: "#34d399",
-                            reason: `系统对 "${name}" 进行了全网扫描。未发现明确的非法集资特征，工商状态正常，无负面舆情。`,
-                            raw: "暂无相关违规记录。",
-                            risks: [],
-                            radar: [10, 20, 10, 10, 10]
-                        };
-                    }
-
-                    setTimeout(() => {
-                        analyzing.value = false;
-                        result.value = data;
-                        typeWriter(data.reason);
-                        nextTick(() => initRadar(data.radar, data.color));
-                    }, 1500);
-                };
-
-                const quickFill = (name) => {
-                    searchInput.value = name;
-                    runAnalysis();
-                };
-
-                // 打字机效果
-                const typeWriter = (text) => {
-                    aiTextDisplay.value = '';
-                    let i = 0;
-                    const timer = setInterval(() => {
-                        aiTextDisplay.value += text.charAt(i);
-                        i++;
-                        if(i >= text.length) clearInterval(timer);
-                    }, 20);
-                };
-
-                // 初始化图表
-                const initRadar = (data, color) => {
-                    const chart = echarts.init(document.getElementById('radarChart'));
-                    chart.setOption({
-                        radar: {
-                            indicator: [
-                                { name: '涉稳', max: 100 }, { name: '诱导', max: 100 },
-                                { name: '业务', max: 100 }, { name: '舆情', max: 100 },
-                                { name: '关联', max: 100 }
-                            ],
-                            splitArea: { show: false },
-                            axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
-                        },
-                        series: [{
-                            type: 'radar',
-                            data: [{
-                                value: data,
-                                name: 'Risk',
-                                areaStyle: { color: color, opacity: 0.2 },
-                                lineStyle: { color: color }
-                            }]
-                        }]
-                    });
-                };
-
-                const initTrendChart = () => {
-                    const chart = echarts.init(document.getElementById('trendChart'));
-                    chart.setOption({
-                        grid: { top: 10, bottom: 20, left: 30, right: 10 },
-                        xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], axisLine: {lineStyle:{color:'rgba(255,255,255,0.2)'}} },
-                        yAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
-                        series: [{
-                            data: [120, 132, 101, 134, 90, 230, 210],
-                            type: 'line', smooth: true, itemStyle: { color: '#6366f1' }, areaStyle: { color: 'rgba(99, 102, 241, 0.2)' }
-                        }]
-                    });
-                };
-
-                // 背景星空粒子
-                const initCanvas = () => {
-                    const canvas = document.getElementById('bg-canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
-                    const stars = Array(100).fill().map(() => ({
-                        x: Math.random() * canvas.width,
-                        y: Math.random() * canvas.height,
-                        r: Math.random() * 2,
-                        a: Math.random()
-                    }));
-                    function animate() {
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.fillStyle = '#ffffff';
-                        stars.forEach(s => {
-                            ctx.globalAlpha = s.a;
-                            ctx.beginPath();
-                            ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
-                            ctx.fill();
-                            s.y -= 0.2;
-                            if(s.y < 0) s.y = canvas.height;
-                        });
-                        requestAnimationFrame(animate);
-                    }
-                    animate();
-                };
-
-                onMounted(() => {
-                    setInterval(() => currentTime.value = new Date().toLocaleTimeString(), 1000);
-                    initCanvas();
-                    initTrendChart();
-                });
-
-                return {
-                    activeTab, searchInput, analyzing, result, mockDB: MOCK_DB,
-                    quickFill, runAnalysis, currentTime, aiTextDisplay, monitorData, riskTop5
-                };
-            }
-        });
-
-        // 注册图标
-        for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-            app.component(key, component)
+            if(pageId === 'dashboard') renderTrendChart();
         }
-        app.use(ElementPlus);
-        app.mount('#app');
+
+        function quickFill(name) {
+            document.getElementById('searchInput').value = name;
+            startAnalysis();
+        }
+
+        function startAnalysis() {
+            const input = document.getElementById('searchInput').value;
+            if(!input) return;
+
+            document.getElementById('loader').style.display = 'flex';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultContent').style.display = 'none';
+
+            // 查找或生成数据
+            let data = null;
+            for(let key in DB) {
+                if(input.includes(key)) { data = {...DB[key], name: key}; break; }
+            }
+            if(!data) {
+                data = { ...DB["浦领信息"], name: input, score: 45, level: "低风险", color: "#34d399", reason: "系统通用扫描完成。未发现明确的高危特征，建议持续关注。", risks: [], radar: [20,30,20,20,20] };
+            }
+
+            setTimeout(() => {
+                document.getElementById('loader').style.display = 'none';
+                renderResult(data);
+            }, 1200);
+        }
+
+        function renderResult(data) {
+            document.getElementById('resultContent').style.display = 'flex';
+            document.getElementById('resName').innerText = data.name;
+            document.getElementById('resScore').innerText = data.score;
+            document.getElementById('resScore').style.color = data.color;
+            document.getElementById('resTag').innerText = data.level;
+            document.getElementById('resTag').style.background = data.color;
+            document.getElementById('resRaw').innerText = data.raw;
+
+            // 打字机
+            const box = document.getElementById('aiText');
+            box.innerHTML = '<span class="cursor"></span>';
+            let i = 0;
+            const timer = setInterval(() => {
+                box.innerText = data.reason.substring(0, i);
+                i++;
+                if(i > data.reason.length) clearInterval(timer);
+            }, 20);
+
+            // 风险列表
+            const list = document.getElementById('riskList');
+            list.innerHTML = '';
+            data.risks.forEach(r => {
+                list.innerHTML += `<div style="background:rgba(255,255,255,0.05); padding:8px; margin-bottom:5px; border-radius:4px; font-size:13px; border-left:3px solid ${data.color}">${r}</div>`;
+            });
+
+            renderRadar(data.radar, data.color);
+        }
+
+        function renderRadar(data, color) {
+            const dom = document.getElementById('radarChart');
+            if(window.echarts) {
+                const chart = echarts.init(dom);
+                chart.setOption({
+                    radar: {
+                        indicator: [ { name: '涉稳', max: 100 }, { name: '诱导', max: 100 }, { name: '业务', max: 100 }, { name: '舆情', max: 100 }, { name: '关联', max: 100 } ],
+                        splitArea: { show: false },
+                        axisName: { color: '#94a3b8' },
+                        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+                    },
+                    series: [{
+                        type: 'radar',
+                        data: [{ value: data, name: 'Risk', areaStyle: { color: color, opacity: 0.3 }, lineStyle: { color: color } }]
+                    }]
+                });
+                window.addEventListener('resize', () => chart.resize());
+            } else {
+                dom.innerHTML = "<div style='color:#64748b; text-align:center; padding-top:30%;'>图表加载中...</div>";
+            }
+        }
+
+        function renderTrendChart() {
+            const dom = document.getElementById('trendChart');
+            if(window.echarts) {
+                const chart = echarts.init(dom);
+                chart.setOption({
+                    grid: { top: 10, bottom: 20, left: 30, right: 10 },
+                    xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], axisLine: {lineStyle:{color:'rgba(255,255,255,0.1)'}}, axisLabel: {color:'#64748b'} },
+                    yAxis: { type: 'value', splitLine: {lineStyle:{color:'rgba(255,255,255,0.05)'}}, axisLabel: {color:'#64748b'} },
+                    series: [{ data: [120, 132, 101, 134, 90, 230, 210], type: 'line', smooth: true, itemStyle: {color: '#6366f1'}, areaStyle: {color: 'rgba(99, 102, 241, 0.2)'} }]
+                });
+                window.addEventListener('resize', () => chart.resize());
+            }
+        }
+
+        // 初始化列表
+        window.onload = () => {
+            // 填充样本库
+            const mockList = document.getElementById('mockList');
+            for(let key in DB) {
+                const item = DB[key];
+                mockList.innerHTML += `
+                    <div class="list-item" onclick="quickFill('${key}')">
+                        <span style="font-weight:bold; color:#e2e8f0;">${key}</span>
+                        <span class="tag" style="border-color:${item.color}; color:${item.color}">${item.level}</span>
+                    </div>
+                `;
+            }
+            
+            // 填充高危榜
+            const topList = document.getElementById('topList');
+            Object.keys(DB).slice(0, 5).forEach((key, i) => {
+                topList.innerHTML += `
+                    <div class="list-item">
+                        <span><span style="color:#6366f1; font-weight:bold; margin-right:10px;">${i+1}</span> ${key}</span>
+                        <span style="color:#f43f5e">${DB[key].score}</span>
+                    </div>
+                `;
+            });
+
+            // 填充舆情流
+            const monitor = document.getElementById('monitorList');
+            const msgs = [
+                "监测到 '昇羽资本' 出现 '软跑路' 关键词...",
+                "监测到 'RWA商合道' 涉及夸大宣传...",
+                "监测到 '众心帮扶' 收取入门费...",
+                "监测到 '云端算力' 承诺高额静态收益..."
+            ];
+            for(let i=0; i<20; i++) {
+                monitor.innerHTML += `<div style="padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.05); color:#94a3b8;">[12:00:${i<10?'0'+i:i}] ${msgs[i%4]}</div>`;
+            }
+
+            renderTrendChart();
+        };
     </script>
 </body>
-
 </html>
